@@ -37,19 +37,20 @@ def idor_login_api(request, app):
 
 
 def idor_profile_page(request, app):
-    if request.cookies.get('session_token') != user.password:
+    session_token = request.cookies.get('session_token')
+
+    if not session_token:
         return redirect(url_for('idor_login'))
-    
 
-    user_id = request.cookies.get('user_id')
-
+    # Look up the user by their session_token (password hash) to authenticate
+    # This prevents IDOR by only returning the profile of the authenticated user
     db_result = app.db_helper.execute_read(
-        f"SELECT * FROM users WHERE id=:user_id",
-        { 'user_id': user_id }
+        f"SELECT * FROM users WHERE password=:session_token",
+        { 'session_token': session_token }
     )
 
     if len(db_result) == 0:
-        return render_template('idor/idor_profile.html', user=None), 404
+        return redirect(url_for('idor_login'))
 
     user = list(
         map(
